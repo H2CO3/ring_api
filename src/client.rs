@@ -1,10 +1,8 @@
 //! A RING HTTP API client.
 
-use reqwest::{
-    Client as ReqwestClient,
-    Result as ReqwestResult,
-};
+use reqwest::Client as ReqwestClient;
 use crate::requests::Request;
+use crate::error::Result;
 
 /// The base URL for the RING API.
 static BASE_URL: &str = "http://protein.bio.unipd.it/ringws";
@@ -25,7 +23,7 @@ impl Client {
     }
 
     /// Sending requests.
-    pub fn send<R: Request>(&self, request: R) -> ReqwestResult<R::Response> {
+    pub fn send<R: Request>(&self, request: R) -> Result<R::Response> {
         let endpoint = request.endpoint();
         let endpoint = endpoint.trim_matches('/');
         let url = format!("{}/{}", BASE_URL, endpoint);
@@ -36,6 +34,7 @@ impl Client {
             .json(&request)
             .send()
             .and_then(|mut resp| resp.json())
+            .map_err(From::from)
     }
 }
 

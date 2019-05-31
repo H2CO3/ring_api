@@ -12,7 +12,7 @@
 #![allow(clippy::single_match, clippy::match_same_arms, clippy::match_ref_pats,
          clippy::clone_on_ref_ptr, clippy::needless_pass_by_value)]
 #![deny(clippy::wrong_pub_self_convention, clippy::used_underscore_binding,
-        clippy::stutter, clippy::similar_names, clippy::pub_enum_variant_names,
+        clippy::similar_names, clippy::pub_enum_variant_names,
         clippy::missing_docs_in_private_items,
         clippy::non_ascii_literal, clippy::unicode_not_nfc,
         clippy::result_unwrap_used, clippy::option_unwrap_used,
@@ -29,12 +29,63 @@
 #[macro_use]
 extern crate serde_derive;
 extern crate serde;
+extern crate serde_json;
 extern crate reqwest;
 
 pub use client::*;
+pub use error::*;
 pub use requests::*;
 pub use settings::*;
+pub use job::*;
 
 pub mod client;
+pub mod error;
 pub mod requests;
 pub mod settings;
+pub mod job;
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn submit() -> Result<()> {
+        let client = Client::new();
+        let request = SubmitId {
+            pdb_id: String::from("3S6A"),
+            settings: Settings {
+                chain: Chain::Id('A'),
+                network_policy: NetworkPolicy::CAlpha,
+                interactions: InteractionType::All,
+                ..Default::default()
+            },
+        };
+        let response = client.send(&request)?;
+        println!("{:#?}", response);
+        Ok(())
+    }
+
+    #[test]
+    fn serde() -> std::result::Result<(), Box<dyn std::error::Error>> {
+        let s1 = Settings {
+            chain: Chain::Id('X'),
+            network_policy: NetworkPolicy::CBeta,
+            interactions: InteractionType::NoSpecific,
+            sequence_separation: 42,
+            thresholds: Thresholds::relaxed(),
+            skip_hetero: true,
+            skip_water: false,
+            perform_msa: true,
+            ..Default::default()
+        };
+        let json = serde_json::to_string_pretty(&s1)?;
+        let s2: Settings = serde_json::from_str(&json)?;
+        assert_eq!(s1, s2);
+
+        let json_default = serde_json::to_string(&Settings::default())?;
+        let s_default: Settings = serde_json::from_str(&json_default)?;
+        assert_eq!(s_default, Settings::default());
+
+        Ok(())
+    }
+}

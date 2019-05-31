@@ -1,8 +1,10 @@
 //! Parameters for submitting a job.
 
+use std::str::FromStr;
+use std::fmt::{ Display, Formatter, Result as FmtResult };
 use serde::{
-    ser::{ Serialize, Serializer },
-    de::{ Deserialize, Deserializer },
+    ser::{ Serialize, Serializer, SerializeMap, Error },
+    de::{ Deserialize, Deserializer, Visitor, MapAccess },
 };
 
 /// Parameters for submitting a job.
@@ -168,13 +170,171 @@ impl Default for Thresholds {
 // Serialize and Deserialize impls
 
 impl Serialize for Settings {
-    fn serialize<S: Serializer>(&self, mut serializer: S) -> Result<S::Ok, S::Error> {
-        unimplemented!()
+    fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        let thresholds_str = serde_json::to_string(&self.thresholds)
+            .map_err(S::Error::custom)?;
+
+        let mut map = serializer.serialize_map(Some(10))?;
+
+        map.serialize_entry("ringmd", "false")?; // we always need this
+        map.serialize_entry("chain", &self.chain)?;
+        map.serialize_entry("networkPolicy", &self.network_policy)?;
+        // !!! must be serialized as a string
+        map.serialize_entry("seqSeparation", &self.sequence_separation.to_string())?;
+        map.serialize_entry("thresholds", &thresholds_str)?;
+        map.serialize_entry("nohetero", &self.skip_hetero.to_string())?;
+        map.serialize_entry("nowater", &self.skip_water.to_string())?;
+        map.serialize_entry("noenergy", &self.skip_energy.to_string())?;
+
+        if self.perform_msa {
+            map.serialize_entry("msa", "true")?;
+        }
+
+        match self.interactions {
+            InteractionType::All => map.serialize_entry("allEdges", "true")?,
+            InteractionType::Multiple => {},
+            InteractionType::MostEnergetic => map.serialize_entry("onlyFirstEdge", "true")?,
+            InteractionType::NoSpecific => map.serialize_entry("nospecific", "true")?,
+        }
+
+        map.end()
     }
 }
 
 impl<'de> Deserialize<'de> for Settings {
     fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
-        unimplemented!()
+        use serde::de::Error;
+
+        /// Just because we are forced to use a visitor.
+        #[derive(Debug, Clone, Copy)]
+        struct SettingsVisitor;
+
+        impl<'de> Visitor<'de> for SettingsVisitor {
+            type Value = Settings;
+
+            fn expecting(&self, formatter: &mut Formatter) -> FmtResult {
+                formatter.pad("a map of key-value pairs for settings")
+            }
+
+            fn visit_map<M: MapAccess<'de>>(self, mut map: M) -> Result<Self::Value, M::Error> {
+                let mut settings = Settings::default();
+
+                while let Some(key) = map.next_key()? {
+                    match key {
+                        "chain" => {
+                            settings.chain = map.next_value()?;
+                        }
+                        "networkPolicy" => {
+                            settings.network_policy = map.next_value()?;
+                        }
+                        "allEdges" => {
+                            let _: &str = map.next_value()?;
+                            settings.interactions = InteractionType::All;
+                        }
+                        "onlyFirstEdge" => {
+                            let _: &str = map.next_value()?;
+                            settings.interactions = InteractionType::MostEnergetic;
+                        }
+                        "nospecific" => {
+                            let _: &str = map.next_value()?;
+                            settings.interactions = InteractionType::NoSpecific;
+                        }
+                        "seqSeparation" => {
+                            settings.sequence_separation = parse_next_value(&mut map)?;
+                        }
+                        "thresholds" => {
+                            let value_str: String = map.next_value()?;
+                            settings.thresholds = serde_json::from_str(
+                                &value_str
+                            ).map_err(
+                                M::Error::custom
+                            )?;
+                        }
+                        "nohetero" => {
+                            settings.skip_hetero = parse_next_value(&mut map)?;
+                        }
+                        "nowater" => {
+                            settings.skip_water = parse_next_value(&mut map)?;
+                        }
+                        "noenergy" => {
+                            settings.skip_energy = parse_next_value(&mut map)?;
+                        }
+                        "msa" => {
+                            let _: &str = map.next_value()?;
+                            settings.perform_msa = true;
+                        }
+                        _ => {
+                            let _: &str = map.next_value()?;
+                        }
+                    }
+                }
+
+                Ok(settings)
+            }
+        }
+
+        deserializer.deserialize_map(SettingsVisitor)
     }
+}
+
+impl Serialize for Chain {
+    fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        match *self {
+            Chain::All => serializer.serialize_str("all"),
+            Chain::Id(id) => serializer.serialize_char(id),
+        }
+    }
+}
+
+impl<'de> Deserialize<'de> for Chain {
+    fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        use serde::de::Error;
+
+        /// Just because we are forced to use a visitor.
+        #[derive(Debug, Clone, Copy)]
+        struct ChainVisitor;
+
+        impl<'de> Visitor<'de> for ChainVisitor {
+            type Value = Chain;
+
+            fn expecting(&self, formatter: &mut Formatter) -> FmtResult {
+                formatter.pad("a one-letter chain ID or \"all\"")
+            }
+
+            fn visit_char<E: Error>(self, v: char) -> Result<Self::Value, E> {
+                Ok(Chain::Id(v))
+            }
+
+            fn visit_str<E: Error>(self, v: &str) -> Result<Self::Value, E> {
+                if v == "all" {
+                    Ok(Chain::All)
+                } else {
+                    let mut chars = v.chars();
+
+                    if let Some(c) = chars.next() {
+                        if chars.next().is_none() {
+                            Ok(Chain::Id(c))
+                        } else {
+                            Err(E::custom("multi-letter string is not a valid chain ID"))
+                        }
+                    } else {
+                       Err(E::custom("empty string is not a valid chain ID"))
+                    }
+                }
+            }
+        }
+
+        deserializer.deserialize_str(ChainVisitor)
+    }
+}
+
+/// Private helper for deserializing a map.
+fn parse_next_value<'de, T, M>(map: &mut M) -> Result<T, M::Error>
+    where T: FromStr,
+          T::Err: Display,
+          M: MapAccess<'de>,
+{
+    use serde::de::Error;
+    let value_str: &str = map.next_value()?;
+    value_str.parse().map_err(M::Error::custom)
 }
