@@ -9,6 +9,11 @@ pub enum JobStatus {
     /// The hob is in progress.
     #[serde(rename = "db")]
     InProgress,
+    /// Part of the job has been completed and some of the results are available.
+    /// This is typically returned when the job involves performing an MSA,
+    /// and the rest of the computation is done but PSIBLAST is still running.
+    #[serde(rename = "partial")]
+    Partial,
     /// The job has completed successfully, results are ready to retrieve.
     #[serde(rename = "complete")]
     Complete,
