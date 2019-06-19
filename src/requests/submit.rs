@@ -15,7 +15,7 @@ pub struct SubmitId {
     #[serde(rename = "pdbName")]
     pub pdb_id: String,
     /// The settings with which to perform the job.
-    #[serde(flatten)]
+    #[serde(flatten, default)]
     pub settings: Settings,
 }
 

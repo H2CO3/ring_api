@@ -77,6 +77,7 @@ pub enum InteractionType {
 
 /// Distance thresholds (maximum) between atoms.
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+#[serde(default)]
 pub struct Thresholds {
     /// Hydrogen bonds.
     #[serde(rename = "hbond")]
@@ -219,8 +220,8 @@ impl<'de> Deserialize<'de> for Settings {
             fn visit_map<M: MapAccess<'de>>(self, mut map: M) -> Result<Self::Value, M::Error> {
                 let mut settings = Settings::default();
 
-                while let Some(key) = map.next_key()? {
-                    match key {
+                while let Some(key) = map.next_key::<String>()? {
+                    match key.as_str() {
                         "chain" => {
                             settings.chain = map.next_value()?;
                         }
@@ -228,15 +229,15 @@ impl<'de> Deserialize<'de> for Settings {
                             settings.network_policy = map.next_value()?;
                         }
                         "allEdges" => {
-                            let _: &str = map.next_value()?;
+                            let _: String = map.next_value()?;
                             settings.interactions = InteractionType::All;
                         }
                         "onlyFirstEdge" => {
-                            let _: &str = map.next_value()?;
+                            let _: String = map.next_value()?;
                             settings.interactions = InteractionType::MostEnergetic;
                         }
                         "nospecific" => {
-                            let _: &str = map.next_value()?;
+                            let _: String = map.next_value()?;
                             settings.interactions = InteractionType::NoSpecific;
                         }
                         "seqSeparation" => {
@@ -260,11 +261,11 @@ impl<'de> Deserialize<'de> for Settings {
                             settings.skip_energy = parse_next_value(&mut map)?;
                         }
                         "msa" => {
-                            let _: &str = map.next_value()?;
+                            let _: String = map.next_value()?;
                             settings.perform_msa = true;
                         }
                         _ => {
-                            let _: &str = map.next_value()?;
+                            let _: String = map.next_value()?;
                         }
                     }
                 }
@@ -335,6 +336,6 @@ fn parse_next_value<'de, T, M>(map: &mut M) -> Result<T, M::Error>
           M: MapAccess<'de>,
 {
     use serde::de::Error;
-    let value_str: &str = map.next_value()?;
+    let value_str: String = map.next_value()?;
     value_str.parse().map_err(M::Error::custom)
 }

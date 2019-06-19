@@ -39,6 +39,12 @@ impl From<String> for JobId {
     }
 }
 
+impl From<&str> for JobId {
+    fn from(string: &str) -> Self {
+        JobId(string.into())
+    }
+}
+
 impl From<JobId> for String {
     fn from(job_id: JobId) -> Self {
         job_id.0
