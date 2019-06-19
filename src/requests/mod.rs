@@ -4,8 +4,10 @@ use std::borrow::Cow;
 use serde::{ Serialize, Deserialize };
 use reqwest::{ Method, header::HeaderMap };
 pub use submit::*;
+pub use status::*;
 
 pub mod submit;
+pub mod status;
 
 /// A RING API request.
 pub trait Request: Serialize {
