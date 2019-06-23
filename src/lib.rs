@@ -90,6 +90,36 @@ mod tests {
     }
 
     #[test]
+    pub fn submit_structure() -> Result<()> {
+        use std::{
+            thread::sleep,
+            time::Duration,
+        };
+
+        let client = Client::new();
+        let request = SubmitStructure::with_pdb_file("testdata/3s6a.pdb")?;
+        let response = client.send(&request)?;
+        println!("{:#?}", response);
+
+        loop {
+            let request = Status {
+                job_id: response.job_id.clone(),
+            };
+            let response = client.send(&request)?;
+
+            println!("{:#?}", response);
+
+            match response.status {
+                JobStatus::Complete => break Ok(()),
+                JobStatus::Failed => panic!("job failed"),
+                JobStatus::InProgress | JobStatus::Partial => {}
+            }
+
+            sleep(Duration::from_secs(5));
+        }
+    }
+
+    #[test]
     fn serde() -> std::result::Result<(), Box<dyn std::error::Error>> {
         let s1 = Settings {
             chain: Chain::Id('X'),
