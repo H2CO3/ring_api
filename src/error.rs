@@ -2,27 +2,49 @@
 
 use std::fmt::{ Display, Formatter, Result as FmtResult };
 use std::error::Error as StdError;
+use serde::ser::Error as SerError;
 use reqwest::Error as ReqwestError;
 
 /// A RING API error.
 #[derive(Debug)]
-pub struct Error(ReqwestError);
+pub enum Error {
+    /// An HTTP error (either a network problem or a RING API error).
+    Reqwest(ReqwestError),
+    /// A serialization error.
+    Serialization(String),
+}
 
 impl Display for Error {
     fn fmt(&self, formatter: &mut Formatter) -> FmtResult {
-        write!(formatter, "RING error: {}", self.0)
+        match *self {
+            Error::Reqwest(ref cause) => write!(
+                formatter, "RING error: {}", cause
+            ),
+            Error::Serialization(ref message) => write!(
+                formatter, "Serialization error: {}", message
+            ),
+        }
     }
 }
 
 impl StdError for Error {
     fn source(&self) -> Option<&(dyn StdError + 'static)> {
-        Some(&self.0)
+        match *self {
+            Error::Reqwest(ref cause) => Some(cause),
+            Error::Serialization(_) => None,
+        }
     }
 }
 
 impl From<ReqwestError> for Error {
     fn from(error: ReqwestError) -> Self {
-        Error(error)
+        Error::Reqwest(error)
+    }
+}
+
+impl SerError for Error {
+    fn custom<T: Display>(msg: T) -> Self {
+        Error::Serialization(msg.to_string())
     }
 }
 

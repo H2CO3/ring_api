@@ -20,22 +20,24 @@ pub struct Status {
 pub struct StatusResponse {
     /// The job ID is echoed back.
     #[serde(rename = "_id")]
-    job_id: JobId,
+    pub job_id: JobId,
     /// The current status of the job.
-    status: JobStatus,
+    pub status: JobStatus,
     /// If a PDB ID has been submitted, it is captured here.
     #[serde(default, rename = "pdbName")]
-    pdb_id: Option<String>,
+    pub pdb_id: Option<String>,
     /// If a file name has been supplied upon submission, it is captured here.
     #[serde(default, rename = "fileName")]
-    file_name: Option<String>,
+    pub file_name: Option<String>,
     /// The job settings are echoed back.
     #[serde(flatten, default)]
-    settings: Settings,
+    pub settings: Settings,
 }
 
 impl Request for Status {
+    type Body = ();
     type Response = StatusResponse;
+
     const METHOD: Method = Method::GET;
 
     fn endpoint(&self) -> Cow<str> {

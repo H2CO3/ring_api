@@ -2,7 +2,7 @@
 
 use std::borrow::Cow;
 use reqwest::Method;
-use super::Request;
+use super::{ Request, RequestBody };
 use crate::{
     settings::Settings,
     job::{ JobId, JobStatus },
@@ -30,10 +30,16 @@ pub struct SubmitResponse {
 }
 
 impl Request for SubmitId {
+    type Body = Self;
     type Response = SubmitResponse;
+
     const METHOD: Method = Method::POST;
 
     fn endpoint(&self) -> Cow<str> {
         Cow::from("/submit")
+    }
+
+    fn body(&self) -> RequestBody<&Self::Body> {
+        RequestBody::Json(self)
     }
 }

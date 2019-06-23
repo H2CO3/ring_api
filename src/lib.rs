@@ -43,6 +43,7 @@ pub mod error;
 pub mod requests;
 pub mod settings;
 pub mod job;
+pub mod multipart;
 
 #[cfg(test)]
 mod tests {
