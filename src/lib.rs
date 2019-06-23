@@ -46,11 +46,17 @@ pub mod job;
 pub mod multipart;
 
 #[cfg(test)]
+#[allow(clippy::print_stdout)]
 mod tests {
     use super::*;
 
     #[test]
-    fn submit() -> Result<()> {
+    fn submit_id() -> Result<()> {
+        use std::{
+            thread::sleep,
+            time::Duration,
+        };
+
         let client = Client::new();
         let request = SubmitId {
             pdb_id: String::from("3S6A"),
@@ -63,7 +69,23 @@ mod tests {
         };
         let response = client.send(&request)?;
         println!("{:#?}", response);
-        Ok(())
+
+        loop {
+            let request = Status {
+                job_id: response.job_id.clone(),
+            };
+            let response = client.send(&request)?;
+
+            println!("{:#?}", response);
+
+            match response.status {
+                JobStatus::Complete => break Ok(()),
+                JobStatus::Failed => panic!("job failed"),
+                JobStatus::InProgress | JobStatus::Partial => {}
+            }
+
+            sleep(Duration::from_secs(5));
+        }
     }
 
     #[test]
