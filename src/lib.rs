@@ -31,7 +31,6 @@ extern crate serde_derive;
 extern crate serde;
 extern crate serde_json;
 extern crate reqwest;
-extern crate regex;
 
 pub use client::*;
 pub use error::*;

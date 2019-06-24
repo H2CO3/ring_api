@@ -16,6 +16,54 @@ use serde::ser::{
 use reqwest::multipart::{ Form, Part };
 use crate::error::{ Error, Result };
 
+/// Describes a file in a multipart form.
+/// The first string is the contents of the file, the second is the
+/// file name.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(rename = "$FormFile")]
+pub struct FormFile(String, String);
+
+impl FormFile {
+    /// The constructor. First parameter is the file contents, the second is
+    /// the file name.
+    pub fn with_contents_and_file_name<T, U>(contents: T, file_name: U) -> Self
+        where T: Into<String>,
+              U: Into<String>,
+    {
+        FormFile(contents.into(), file_name.into())
+    }
+
+    /// Returns the contents, discarding the file name.
+    pub fn into_contents(self) -> String {
+        self.0
+    }
+
+    /// Returns the file name, discarding the contents.
+    pub fn into_file_name(self) -> String {
+        self.1
+    }
+
+    /// Returns a reference to the contents.
+    pub fn contents(&self) -> &str {
+        &self.0
+    }
+
+    /// Returns a reference to the file name.
+    pub fn file_name(&self) -> &str {
+        &self.1
+    }
+
+    /// Replaces the contents of this file part with the given argument.
+    pub fn set_contents(&mut self, contents: String) {
+        self.0 = contents;
+    }
+
+    /// Replaces the file name of this file part with the given argument.
+    pub fn set_file_name(&mut self, file_name: String) {
+        self.1 = file_name;
+    }
+}
+
 /// Takes a serializable value and turns into a multipart form.
 pub fn to_form<T: Serialize>(value: &T) -> Result<Form> {
     let mut serializer = FormSerializer::default();
@@ -28,8 +76,12 @@ pub fn to_form<T: Serialize>(value: &T) -> Result<Form> {
 struct FormSerializer {
     /// Are we currently serializing the top-level map or struct?
     serializing_map: bool,
+    /// Are we currently serializing a file part?
+    serializing_file: bool,
     /// The current key when we are serializing a struct.
     current_key: Option<Cow<'static, str>>,
+    /// The current file contents when we are serializing a file part.
+    current_file_contents: Option<Cow<'static, str>>,
     /// The result being built.
     form: Option<Form>,
 }
@@ -38,7 +90,9 @@ impl Default for FormSerializer {
     fn default() -> Self {
         FormSerializer {
             serializing_map: false,
+            serializing_file: false,
             current_key: None,
+            current_file_contents: None,
             form: Some(Form::new()),
         }
     }
@@ -55,10 +109,24 @@ impl FormSerializer {
             // If a key already exists, we are a value, otherwise we are a key.
             match self.current_key.take() {
                 Some(key) => {
-                    let form = self.form.take().expect("form should never be None");
-                    self.form.replace(form.text(key, string));
+                    if self.serializing_file {
+                        match self.current_file_contents.take() {
+                            Some(contents) => {
+                                let form = self.form.take().expect("form should never be None");
+                                let part = Part::text(contents).file_name(string);
+                                self.form.replace(form.part(key, part));
+                            }
+                            None => {
+                                self.current_file_contents.replace(string);
+                                self.current_key.replace(key); // put it back
+                            }
+                        }
+                    } else {
+                        let form = self.form.take().expect("form should never be None");
+                        self.form.replace(form.text(key, string));
+                    }
                 }
-                None => self.current_key = Some(string)
+                None => self.current_key = Some(string),
             }
 
             Ok(())
@@ -218,10 +286,28 @@ impl Serializer for &mut FormSerializer {
 
     fn serialize_tuple_struct(
         self,
-        _name: &'static str,
+        name: &'static str,
         len: usize,
     ) -> Result<Self::SerializeTupleStruct> {
-        self.serialize_seq(Some(len))
+        if !self.serializing_map {
+            return Err(Error::custom("can't serialize tuple struct at top level"));
+        }
+
+        if self.current_key.is_none() {
+            return Err(Error::custom("can't serialize tuple struct as field name"));
+        }
+
+        if name != "$FormFile" || len != 2 {
+            return Err(Error::custom("only form file can be serialized as tuple struct"));
+        }
+
+        if self.serializing_file {
+            return Err(Error::custom("can't serialize a tuple struct inside a file"));
+        }
+
+        self.serializing_file = true;
+
+        Ok(self)
     }
 
     fn serialize_tuple_variant(
@@ -306,16 +392,28 @@ impl<'a> SerializeTupleStruct for &'a mut FormSerializer {
     type Ok = <&'a mut FormSerializer as Serializer>::Ok;
     type Error = <&'a mut FormSerializer as Serializer>::Error;
 
-    fn serialize_field<T: ?Sized + Serialize>(&mut self, _value: &T) -> Result<Self::Ok> {
-        Err(Error::custom(
-            "can't serialize a tuple struct as multipart"
-        ))
+    fn serialize_field<T: ?Sized + Serialize>(&mut self, value: &T) -> Result<Self::Ok> {
+        if self.serializing_file {
+            value.serialize(&mut **self)
+        } else {
+            Err(Error::custom(
+                "can't serialize a tuple struct as multipart"
+            ))
+        }
     }
 
     fn end(self) -> Result<Self::Ok> {
-        Err(Error::custom(
-            "can't serialize a tuple struct as multipart"
-        ))
+        assert!(self.serializing_map);
+        assert!(self.serializing_file);
+
+        if self.current_key.is_some() {
+            Err(Error::custom("missing contents from file form part"))
+        } else if self.current_file_contents.is_some() {
+            Err(Error::custom("missing file_name from file form part"))
+        } else {
+            self.serializing_file = false;
+            Ok(())
+        }
     }
 }
 

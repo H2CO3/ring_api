@@ -24,10 +24,10 @@ pub struct StatusResponse {
     /// The current status of the job.
     pub status: JobStatus,
     /// If a PDB ID has been submitted, it is captured here.
-    #[serde(default, rename = "pdbName")]
+    #[serde(default, rename = "pdbName", skip_serializing_if = "Option::is_none")]
     pub pdb_id: Option<String>,
     /// If a file name has been supplied upon submission, it is captured here.
-    #[serde(default, rename = "fileName")]
+    #[serde(default, rename = "fileName", skip_serializing_if = "Option::is_none")]
     pub file_name: Option<String>,
     /// The job settings are echoed back.
     #[serde(flatten, default)]
