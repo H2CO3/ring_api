@@ -3,7 +3,10 @@
 use std::fmt::{ Display, Formatter, Result as FmtResult };
 use std::io::Error as IoError;
 use std::error::Error as StdError;
+use std::char::ParseCharError;
+use std::num::ParseIntError;
 use serde::ser::Error as SerError;
+use serde_json::Error as JsonError;
 use reqwest::Error as ReqwestError;
 
 /// A RING API error.
@@ -13,6 +16,10 @@ pub enum Error {
     Reqwest(ReqwestError),
     /// A serialization error.
     Serialization(String),
+    /// A parsing error.
+    Parsing(Box<dyn StdError + 'static>),
+    /// A JSON error.
+    Json(JsonError),
     /// An I/O error.
     Io(IoError),
 }
@@ -24,7 +31,13 @@ impl Display for Error {
                 formatter, "RING error: {}", cause
             ),
             Error::Serialization(ref message) => write!(
-                formatter, "Serialization error: {}", message
+                formatter, "serialization error: {}", message
+            ),
+            Error::Parsing(ref cause) => write!(
+                formatter, "parsing error: {}", cause
+            ),
+            Error::Json(ref cause) => write!(
+                formatter, "json error: {}", cause
             ),
             Error::Io(ref cause) => write!(
                 formatter, "I/O error: {}", cause
@@ -38,6 +51,8 @@ impl StdError for Error {
         match *self {
             Error::Reqwest(ref cause) => Some(cause),
             Error::Serialization(_) => None,
+            Error::Parsing(ref cause) => Some(&**cause),
+            Error::Json(ref cause) => Some(cause),
             Error::Io(ref cause) => Some(cause),
         }
     }
@@ -49,9 +64,27 @@ impl From<ReqwestError> for Error {
     }
 }
 
+impl From<ParseCharError> for Error {
+    fn from(error: ParseCharError) -> Self {
+        Error::Parsing(error.into())
+    }
+}
+
+impl From<ParseIntError> for Error {
+    fn from(error: ParseIntError) -> Self {
+        Error::Parsing(error.into())
+    }
+}
+
 impl From<IoError> for Error {
     fn from(error: IoError) -> Self {
         Error::Io(error)
+    }
+}
+
+impl From<JsonError> for Error {
+    fn from(error: JsonError) -> Self {
+        Error::Json(error)
     }
 }
 

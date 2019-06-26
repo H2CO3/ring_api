@@ -1,10 +1,18 @@
 //! Retrieving the results of a RING Job
 
+use std::fmt::{ Display, Formatter, Result as FmtResult };
+use std::str::FromStr;
 use std::borrow::Cow;
+use serde::{
+    ser::{ Serialize, Serializer },
+    de::{ Deserialize, Deserializer, Visitor, Error as DeError },
+};
+use serde_json::{ self, Value };
 use super::Request;
 use crate::{
     settings::Settings,
     job::{ JobId, JobStatus },
+    error::Error,
 };
 
 /// Request the result of a job
@@ -45,7 +53,7 @@ pub struct Node {
     pub node_id: NodeId,
     /// The name/ID of the chain this residue belongs in.
     #[serde(rename = "Chain")]
-    pub chain_id: String,
+    pub chain_id: char,
     /// The position of the residue inside the sequence, according to PDB.
     /// **NOTE:** this sometimes is 0 or a **negative** integer.
     #[serde(rename = "Position")]
@@ -89,8 +97,81 @@ pub struct Node {
     pub cumul_mutual_entropy: Option<f64>,
 }
 
-/// For now. TODO(H2CO3): make this a `struct`.
-pub type NodeId = String;
+/// A structured Node ID.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct NodeId {
+    /// The chain ID letter found in the PDB structure.
+    pub chain_id: char,
+    /// The PDB position index. May be negative.
+    pub position: isize,
+    /// The PDB insertion code.
+    pub insertion_code: char,
+    /// The amino acid residue kind.
+    pub residue: Residue,
+}
+
+impl Display for NodeId {
+    fn fmt(&self, f: &mut Formatter) -> FmtResult {
+        write!(
+            f, "{}:{}:{}:{}",
+            self.chain_id,
+            self.position,
+            self.insertion_code,
+            self.residue,
+        )
+    }
+}
+
+impl FromStr for NodeId {
+    type Err = Error;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let v: Vec<_> = s.split(':').collect();
+
+        if v.len() == 4 {
+            Ok(NodeId {
+                chain_id:       v[0].parse()?,
+                position:       v[1].parse()?,
+                insertion_code: v[2].parse()?,
+                residue:        v[3].parse()?,
+            })
+        } else {
+            Err(Error::Serialization(String::from(
+                "Node ID format must be chain:position:insertion:residue"
+            )))
+        }
+    }
+}
+
+impl Serialize for NodeId {
+    fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        serializer.collect_str(self)
+    }
+}
+
+impl<'a> Deserialize<'a> for NodeId {
+    fn deserialize<D: Deserializer<'a>>(deserializer: D) -> Result<Self, D::Error> {
+        deserializer.deserialize_str(NodeIdVisitor)
+    }
+}
+
+/// Just your regular private node ID visitor type.
+#[derive(Debug, Clone, Copy, Default)]
+struct NodeIdVisitor;
+
+impl<'a> Visitor<'a> for NodeIdVisitor {
+    type Value = NodeId;
+
+    fn expecting(&self, f: &mut Formatter) -> FmtResult {
+        f.write_str("a string representation of a node ID")
+    }
+
+    fn visit_str<E: DeError>(self, s: &str) -> Result<Self::Value, E> {
+        NodeId::from_str(s).map_err(E::custom)
+    }
+
+}
+
 /// For now. TODO(H2CO3): make this a `struct`.
 pub type PdbFileName = String;
 
@@ -193,6 +274,23 @@ pub enum Residue {
     /// Unknown
     #[serde(rename = "XAA")]
     Unknown,
+}
+
+impl FromStr for Residue {
+    type Err = Error;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        serde_json::from_value(Value::from(s)).map_err(From::from)
+    }
+}
+
+impl Display for Residue {
+    fn fmt(&self, f: &mut Formatter) -> FmtResult {
+        match serde_json::to_value(self) {
+            Ok(Value::String(ref s)) => f.write_str(s),
+            _ => panic!("Residue didn't serialize to a string"),
+        }
+    }
 }
 
 /// Secondary Structure as predicted by DSSP.
