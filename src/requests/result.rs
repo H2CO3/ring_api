@@ -287,7 +287,7 @@ impl FromStr for Residue {
 impl Display for Residue {
     fn fmt(&self, f: &mut Formatter) -> FmtResult {
         match serde_json::to_value(self) {
-            Ok(Value::String(ref s)) => f.write_str(s),
+            Ok(Value::String(ref s)) => f.pad(s),
             _ => panic!("Residue didn't serialize to a string"),
         }
     }
