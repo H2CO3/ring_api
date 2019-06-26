@@ -5,9 +5,11 @@ use serde::{ Serialize, Deserialize };
 use reqwest::{ Method, header::HeaderMap };
 pub use submit::*;
 pub use status::*;
+pub use result::*;
 
 pub mod submit;
 pub mod status;
+pub mod result;
 
 /// What body, if any, should be sent with a request?
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]

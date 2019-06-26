@@ -141,4 +141,16 @@ mod tests {
 
         Ok(())
     }
+
+    #[test]
+    fn retrieve_result() -> Result<()> {
+        let client = Client::new();
+        let job_id = JobId::from("5cefd030b265bd294b0f6b2c");
+        let request = RetrieveResult { job_id };
+        let response = client.send(&request)?;
+
+        println!("{:#?}", response.nodes[0]);
+
+        Ok(())
+    }
 }

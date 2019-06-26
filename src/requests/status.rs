@@ -1,7 +1,6 @@
 //! Endpoint for querying the status of a job.
 
 use std::borrow::Cow;
-use reqwest::Method;
 use super::Request;
 use crate::{
     settings::Settings,
@@ -37,8 +36,6 @@ pub struct StatusResponse {
 impl Request for Status {
     type Body = ();
     type Response = StatusResponse;
-
-    const METHOD: Method = Method::GET;
 
     fn endpoint(&self) -> Cow<str> {
         format!("/status/{}", self.job_id).into()
