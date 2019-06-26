@@ -95,8 +95,35 @@ pub type Residue = String;
 pub type NodeId = String;
 /// For now. TODO(H2CO3): make this a `struct`.
 pub type PdbFileName = String;
-/// For now. TODO(H2CO3): make this an `enum`.
-pub type DsspStructure = String;
+
+/// Secondary Structure as predicted by DSSP.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum DsspStructure {
+    /// No structure predicted by DSSP
+    #[serde(rename = " ")]
+    None,
+    /// 3-turn helix or 3-10 helix
+    #[serde(rename = "G")]
+    Helix310,
+    /// 4-turn helix or alpha helix
+    #[serde(rename = "H")]
+    HelixAlpha,
+    /// 5-turn helix or pi-helix
+    #[serde(rename = "I")]
+    HelixPi,
+    /// Hydrogen bonded turn
+    #[serde(rename = "T")]
+    TurnHBond,
+    /// Extended strand in parallel and/or anti-parallel beta sheet conformation
+    #[serde(rename = "E")]
+    BetaExtended,
+    /// Residue in isolated beta-bridge
+    #[serde(rename = "B")]
+    BetaIsolated,
+    /// Bend
+    #[serde(rename = "S")]
+    Bend,
+}
 
 /// An edge in the interaction graph.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
