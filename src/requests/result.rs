@@ -89,12 +89,111 @@ pub struct Node {
     pub cumul_mutual_entropy: Option<f64>,
 }
 
-/// For now. TODO(H2CO3): make this an `enum`.
-pub type Residue = String;
 /// For now. TODO(H2CO3): make this a `struct`.
 pub type NodeId = String;
 /// For now. TODO(H2CO3): make this a `struct`.
 pub type PdbFileName = String;
+
+/// An amino acid residue.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+pub enum Residue {
+    /// Alanine
+    #[serde(rename = "ALA")]
+    Alanine,
+    /// Arginine
+    #[serde(rename = "ARG")]
+    Arginine,
+    /// Asparagine
+    #[serde(rename = "ASN")]
+    Asparagine,
+    /// AsparticAcid
+    #[serde(rename = "ASP")]
+    AsparticAcid,
+    /// Cysteine
+    #[serde(rename = "CYS")]
+    Cysteine,
+    /// GlutamicAcid
+    #[serde(rename = "GLU")]
+    GlutamicAcid,
+    /// Glutamine
+    #[serde(rename = "GLN")]
+    Glutamine,
+    /// Glycine
+    #[serde(rename = "GLY")]
+    Glycine,
+    /// Homocysteine
+    #[serde(rename = "HCY")]
+    Homocysteine,
+    /// Histidine
+    #[serde(rename = "HIS")]
+    Histidine,
+    /// Homoserine
+    #[serde(rename = "HSE")]
+    Homoserine,
+    /// Isoleucine
+    #[serde(rename = "ILE")]
+    Isoleucine,
+    /// Leucine
+    #[serde(rename = "LEU")]
+    Leucine,
+    /// Lysine
+    #[serde(rename = "LYS")]
+    Lysine,
+    /// Methionine
+    #[serde(rename = "MET")]
+    Methionine,
+    /// Norleucine
+    #[serde(rename = "NLE")]
+    Norleucine,
+    /// Norvaline
+    #[serde(rename = "NVA")]
+    Norvaline,
+    /// Ornithine
+    #[serde(rename = "ORN")]
+    Ornithine,
+    /// Penicillamine
+    #[serde(rename = "PEN")]
+    Penicillamine,
+    /// Phenylalanine
+    #[serde(rename = "PHE")]
+    Phenylalanine,
+    /// Proline
+    #[serde(rename = "PRO")]
+    Proline,
+    /// Pyrrolysine
+    #[serde(rename = "PYL")]
+    Pyrrolysine,
+    /// Selenocysteine
+    #[serde(rename = "SEC")]
+    Selenocysteine,
+    /// Serine
+    #[serde(rename = "SER")]
+    Serine,
+    /// Threonine
+    #[serde(rename = "THR")]
+    Threonine,
+    /// Tryptophan
+    #[serde(rename = "TRP")]
+    Tryptophan,
+    /// Tyrosine
+    #[serde(rename = "TYR")]
+    Tyrosine,
+    /// Valine
+    #[serde(rename = "VAL")]
+    Valine,
+    /// Asparagine or Aspartic Acid
+    #[serde(rename = "ASX")]
+    AsparagineOrAsparticAcid,
+    /// Glutamine or Glutamic Acid
+    #[serde(rename = "GLX")]
+    GlutamineOrGlutamicAcid,
+    /// Leucine or Isoleucine
+    #[serde(rename = "XLE")]
+    LeucineOrIsoleucine,
+    /// Unknown
+    #[serde(rename = "XAA")]
+    Unknown,
+}
 
 /// Secondary Structure as predicted by DSSP.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
