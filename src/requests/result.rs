@@ -40,46 +40,46 @@ pub struct RetrieveResultResponse {
 /// A node in the interaction graph.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Node {
+    /// The unique ID of this node.
+    #[serde(rename = "NodeId")]
+    pub node_id: NodeId,
+    /// The name/ID of the chain this residue belongs in.
+    #[serde(rename = "Chain")]
+    pub chain_id: String,
+    /// The position of the residue inside the sequence, according to PDB.
+    /// **NOTE:** this sometimes is 0 or a **negative** integer.
+    #[serde(rename = "Position")]
+    pub position: isize,
     /// The amino acid that this node represents.
     #[serde(rename = "Residue")]
     pub residue: Residue,
-    /// The B-factor of the alpha carbon.
-    #[serde(rename = "Bfactor_CA")]
-    pub bfactor_ca: f64,
-    /// The TAP energy.
-    #[serde(rename = "Tap", default, skip_serializing_if = "Option::is_none")]
-    pub tap_energy: Option<f64>,
+    /// X coordinate.
+    pub x: f64,
+    /// Y coordinate.
+    pub y: f64,
+    /// Z coordinate.
+    pub z: f64,
+    /// Secondary structure, as predicted by DSSP.
+    #[serde(rename = "Dssp")]
+    pub dssp_structure: DsspStructure,
     /// The degree of, i.e. the number of edges from and to, this node.
     #[serde(rename = "Degree")]
     pub degree: usize,
     /// Relative solvent accessibility (RSA).
     #[serde(rename = "Accessibility")]
     pub accessibility: f64,
+    /// The B-factor of the alpha carbon.
+    #[serde(rename = "Bfactor_CA")]
+    pub bfactor_ca: f64,
+    /// The TAP energy.
+    #[serde(rename = "Tap", default, skip_serializing_if = "Option::is_none")]
+    pub tap_energy: Option<f64>,
     /// The RAPDF energy (calculated based on statistical potentials).
     #[serde(rename = "Rapdf", default, skip_serializing_if = "Option::is_none")]
     pub rapdf_energy: Option<f64>,
     /// Only for letting RINanylezer/StructureViz and Chimera love each other.
     #[serde(rename = "pdbFileName")]
     pub pdb_file_name: PdbFileName,
-    /// The unique ID of this node.
-    #[serde(rename = "NodeId")]
-    pub node_id: NodeId,
-    /// The position of the residue inside the sequence, according to PDB.
-    /// **NOTE:** this sometimes is 0 or a **negative** integer.
-    #[serde(rename = "Position")]
-    pub position: isize,
-    /// The name/ID of the chain this residue belongs in.
-    #[serde(rename = "Chain")]
-    pub chain_id: String,
-    /// X position.
-    pub x: f64,
-    /// Y position.
-    pub y: f64,
-    /// Z position.
-    pub z: f64,
-    /// Secondary structure, as predicted by DSSP.
-    #[serde(rename = "Dssp")]
-    pub dssp_structure: DsspStructure,
     /// Shannon entropy computed from a multiple alignment (MSA=true).
     #[serde(rename = "Entropy", default, skip_serializing_if = "Option::is_none")]
     pub entropy: Option<f64>,
