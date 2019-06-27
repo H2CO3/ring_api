@@ -4,7 +4,7 @@ use std::fmt::{ Display, Formatter, Result as FmtResult };
 use std::io::Error as IoError;
 use std::error::Error as StdError;
 use std::char::ParseCharError;
-use std::num::ParseIntError;
+use std::num::{ ParseIntError, ParseFloatError };
 use serde::ser::Error as SerError;
 use serde_json::Error as JsonError;
 use reqwest::Error as ReqwestError;
@@ -72,6 +72,12 @@ impl From<ParseCharError> for Error {
 
 impl From<ParseIntError> for Error {
     fn from(error: ParseIntError) -> Self {
+        Error::Parsing(error.into())
+    }
+}
+
+impl From<ParseFloatError> for Error {
+    fn from(error: ParseFloatError) -> Self {
         Error::Parsing(error.into())
     }
 }

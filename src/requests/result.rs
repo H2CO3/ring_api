@@ -96,7 +96,7 @@ pub struct Node {
     pub rapdf_energy: Option<f64>,
     /// Only for letting RINanylezer/StructureViz and Chimera love each other.
     #[serde(rename = "pdbFileName")]
-    pub pdb_file_name: PdbFileName,
+    pub pdb_file_name: String,
     /// Shannon entropy computed from a multiple alignment (MSA=true).
     #[serde(rename = "Entropy", default, skip_serializing_if = "Option::is_none")]
     pub entropy: Option<f64>,
@@ -179,9 +179,6 @@ impl<'a> Visitor<'a> for NodeIdVisitor {
         NodeId::from_str(s).map_err(E::custom)
     }
 }
-
-/// For now. TODO(H2CO3): make this a `struct`.
-pub type PdbFileName = String;
 
 /// An amino acid residue.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
@@ -344,10 +341,10 @@ pub struct Edge {
     pub interaction: Interaction,
     /// The interacting atom in node 1.
     #[serde(rename = "Atom1")]
-    pub atom_1: String,
+    pub atom_1: Atom,
     /// The interacting atom in node 2.
     #[serde(rename = "Atom2")]
-    pub atom_2: String,
+    pub atom_2: Atom,
     /// The distance in Angstrom between atom centers / mass centers / barycenters
     /// depending on the type of interaction and the type of residue.
     #[serde(rename = "Distance")]
@@ -535,6 +532,77 @@ pub enum InteractionSubType {
     Ligand,
 }
 
+/// Describes an atom either by its name or by its coordinates.
+#[derive(Debug, Clone, PartialEq)]
+pub enum Atom {
+    /// A named atom.
+    Name(String),
+    /// A 3D coordinate which can locate an atom, a center of mass, a barycenter, etc.
+    Coords {
+        /// The X component of the coordinate.
+        x: f64,
+        /// The Y component of the coordinate.
+        y: f64,
+        /// The Z component of the coordinate.
+        z: f64,
+    },
+}
+
+impl Display for Atom {
+    fn fmt(&self, f: &mut Formatter) -> FmtResult {
+        match *self {
+            Atom::Name(ref name) => f.pad(name),
+            Atom::Coords { x, y, z } => write!(f, "{},{},{}", x, y, z),
+        }
+    }
+}
+
+impl FromStr for Atom {
+    type Err = Error;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let parts: Vec<_> = s.split(',').collect();
+
+        if parts.len() == 3 {
+            Ok(Atom::Coords {
+                x: parts[0].parse()?,
+                y: parts[1].parse()?,
+                z: parts[2].parse()?,
+            })
+        } else {
+            Ok(Atom::Name(s.into()))
+        }
+    }
+}
+
+impl Serialize for Atom {
+    fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        serializer.collect_str(self)
+    }
+}
+
+impl<'a> Deserialize<'a> for Atom {
+    fn deserialize<D: Deserializer<'a>>(deserializer: D) -> Result<Self, D::Error> {
+        deserializer.deserialize_str(AtomVisitor)
+    }
+}
+
+
+/// Serde visitor for deserializing an Atom.
+#[derive(Debug, Clone, Copy, Default)]
+struct AtomVisitor;
+
+impl<'a> Visitor<'a> for AtomVisitor {
+    type Value = Atom;
+
+    fn expecting(&self, f: &mut Formatter) -> FmtResult {
+        f.write_str("an atom name or comma-separated X, Y, Z coordinates")
+    }
+
+    fn visit_str<E: DeError>(self, s: &str) -> Result<Self::Value, E> {
+        Atom::from_str(s).map_err(E::custom)
+    }
+}
 
 /// De/Serialize an invalid angle of -999.9 as `None`.
 mod serde_angle {
