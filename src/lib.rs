@@ -150,6 +150,7 @@ mod tests {
         let response = client.send(&request)?;
 
         println!("{:#?}", response.nodes[0]);
+        println!("{:#?}", response.edges[2]);
 
         Ok(())
     }

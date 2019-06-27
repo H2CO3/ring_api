@@ -22,6 +22,15 @@ pub struct RetrieveResult {
     pub job_id: JobId,
 }
 
+impl Request for RetrieveResult {
+    type Body = ();
+    type Response = RetrieveResultResponse;
+
+    fn endpoint(&self) -> Cow<str> {
+        format!("/results/{}?engine=d3", self.job_id).into()
+    }
+}
+
 /// Response containing the result for a completed RING job.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct RetrieveResultResponse {
@@ -169,7 +178,6 @@ impl<'a> Visitor<'a> for NodeIdVisitor {
     fn visit_str<E: DeError>(self, s: &str) -> Result<Self::Value, E> {
         NodeId::from_str(s).map_err(E::custom)
     }
-
 }
 
 /// For now. TODO(H2CO3): make this a `struct`.
@@ -323,14 +331,130 @@ pub enum DsspStructure {
 }
 
 /// An edge in the interaction graph.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub struct Edge {}
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct Edge {
+    /// ID of one of the nodes connected by this edge.
+    #[serde(rename = "NodeId1")]
+    pub node_id_1: NodeId,
+    /// ID of the other node connected by this edge.
+    #[serde(rename = "NodeId2")]
+    pub node_id_2: NodeId,
+    /// The interaction type corresponding to this edge.
+    #[serde(rename = "Interaction")]
+    pub interaction: Interaction,
+    /// The interacting atom in node 1.
+    #[serde(rename = "Atom1")]
+    pub atom_1: String,
+    /// The interacting atom in node 2.
+    #[serde(rename = "Atom2")]
+    pub atom_2: String,
+    /// The distance in Angstrom between atom centers / mass centers / barycenters
+    /// depending on the type of interaction and the type of residue.
+    #[serde(rename = "Distance")]
+    pub distance: f64,
+    /// The angle in degree.
+    #[serde(rename = "Angle", with = "serde_angle")]
+    pub angle: Option<f64>,
+    /// The average bond free energy in KJ/mol according to literature.
+    #[serde(rename = "Energy")]
+    pub energy: f64,
+    /// The donor in a hydrogen bond.
+    #[serde(
+        rename = "Donor", default,
+        deserialize_with = "deserialize_empty_nodeid",
+        skip_serializing_if = "Option::is_none",
+    )]
+    pub donor: Option<NodeId>,
+    /// The positive side of an ionic bond.
+    #[serde(
+        rename = "Positive", default,
+        deserialize_with = "deserialize_empty_nodeid",
+        skip_serializing_if = "Option::is_none",
+    )]
+    pub positive: Option<NodeId>,
+    /// The cation in a pi-cation interaction.
+    #[serde(
+        rename = "Cation", default,
+        deserialize_with = "deserialize_empty_nodeid",
+        skip_serializing_if = "Option::is_none",
+    )]
+    pub cation: Option<NodeId>,
+}
 
-impl Request for RetrieveResult {
-    type Body = ();
-    type Response = RetrieveResultResponse;
+/// For now. TODO(H2CO3): make this an `enum`.
+pub type Interaction = String;
 
-    fn endpoint(&self) -> Cow<str> {
-        format!("/results/{}?engine=d3", self.job_id).into()
+/// De/Serialize an invalid angle of -999.9 as `None`.
+mod serde_angle {
+    use serde::{
+        ser::Serializer,
+        de::{ Deserializer, Visitor, Error },
+    };
+    use std::fmt::{ Formatter, Result as FmtResult };
+
+    /// Serialize a `None` angle as the invalid value -999.9.
+    pub fn serialize<S: Serializer>(value: &Option<f64>, s: S) -> Result<S::Ok, S::Error> {
+        s.serialize_f64(value.unwrap_or(-999.9))
+    }
+
+    /// Deserialize an invalid angle of -999.9 as `None`.
+    pub fn deserialize<'a, D: Deserializer<'a>>(d: D) -> Result<Option<f64>, D::Error> {
+        d.deserialize_f64(AngleVisitor)
+    }
+
+    /// Visitor for `deserialize()`.
+    #[derive(Debug, Clone, Copy, Default)]
+    struct AngleVisitor;
+
+    impl<'a> Visitor<'a> for AngleVisitor {
+        type Value = Option<f64>;
+
+        fn expecting(&self, f: &mut Formatter) -> FmtResult {
+            f.write_str("a number representing an angle")
+        }
+
+        #[allow(clippy::float_cmp)]
+        fn visit_f64<E: Error>(self, v: f64) -> Result<Self::Value, E> {
+            if v == -999.9 {
+                Ok(None)
+            } else {
+                Ok(Some(v))
+            }
+        }
+
+        #[allow(clippy::cast_precision_loss)]
+        fn visit_i64<E: Error>(self, v: i64) -> Result<Self::Value, E> {
+            Ok(Some(v as f64))
+        }
+
+        #[allow(clippy::cast_precision_loss)]
+        fn visit_u64<E: Error>(self, v: u64) -> Result<Self::Value, E> {
+            Ok(Some(v as f64))
+        }
+    }
+}
+
+/// Deserialize an empty `NodeId` string as `None` instead of failing.
+fn deserialize_empty_nodeid<'a, D: Deserializer<'a>>(d: D) -> Result<Option<NodeId>, D::Error> {
+    d.deserialize_str(EmptyNodeIdVisitor)
+}
+
+/// Yields a `None` instead of an error when a NodeId is an empty string.
+#[derive(Debug, Clone, Copy, Default)]
+struct EmptyNodeIdVisitor;
+
+impl<'a> Visitor<'a> for EmptyNodeIdVisitor {
+    type Value = Option<NodeId>;
+
+    fn expecting(&self, f: &mut Formatter) -> FmtResult {
+        f.write_str("a NodeId or an empty string")
+    }
+
+    fn visit_str<E: DeError>(self, s: &str) -> Result<Self::Value, E> {
+        if s.is_empty() {
+            Ok(None)
+        } else {
+            NodeId::from_str(s).map(Some).map_err(E::custom)
+        }
     }
 }
