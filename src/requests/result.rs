@@ -284,20 +284,20 @@ pub enum Residue {
     Unknown,
 }
 
-impl FromStr for Residue {
-    type Err = Error;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        serde_json::from_value(Value::from(s)).map_err(From::from)
-    }
-}
-
 impl Display for Residue {
     fn fmt(&self, f: &mut Formatter) -> FmtResult {
         match serde_json::to_value(self) {
             Ok(Value::String(ref s)) => f.pad(s),
             _ => panic!("Residue didn't serialize to a string"),
         }
+    }
+}
+
+impl FromStr for Residue {
+    type Err = Error;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        serde_json::from_value(Value::from(s)).map_err(From::from)
     }
 }
 
@@ -379,10 +379,162 @@ pub struct Edge {
         skip_serializing_if = "Option::is_none",
     )]
     pub cation: Option<NodeId>,
+    /// Mutual Information
+    #[serde(rename = "MI", default, skip_serializing_if = "Option::is_none")]
+    pub mutual_inf: Option<f64>,
+    /// Average Product Correction
+    #[serde(rename = "APC", default, skip_serializing_if = "Option::is_none")]
+    pub apc: Option<f64>,
+    /// Corrected Mutual Information
+    #[serde(rename = "MIcorrected", default, skip_serializing_if = "Option::is_none")]
+    pub corrected_mi: Option<f64>,
 }
 
-/// For now. TODO(H2CO3): make this an `enum`.
-pub type Interaction = String;
+/// Descriptor of an Interaction Type.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct Interaction {
+    /// Main interaction type.
+    pub main_type: InteractionMainType,
+    /// Node 1 subtype.
+    pub subtype_1: InteractionSubType,
+    /// Node 2 subtype.
+    pub subtype_2: InteractionSubType,
+}
+
+impl Display for Interaction {
+    fn fmt(&self, f: &mut Formatter) -> FmtResult {
+        write!(f, "{}:{}_{}", self.main_type, self.subtype_1, self.subtype_2)
+    }
+}
+
+impl FromStr for Interaction {
+    type Err = Error;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let parts: Vec<_> = s.split(':').collect();
+
+        if parts.len() == 2 {
+            let main = parts[0];
+            let parts: Vec<_> = parts[1].split('_').collect();
+
+            if parts.len() == 2 {
+                Ok(Interaction {
+                    main_type: main.parse()?,
+                    subtype_1: parts[0].parse()?,
+                    subtype_2: parts[1].parse()?,
+                })
+            } else {
+                Err(Error::Serialization(String::from(
+                    "Interaction type format must be main:sub1_sub2"
+                )))
+            }
+        } else {
+            Err(Error::Serialization(String::from(
+                "Interaction type format must be main:sub1_sub2"
+            )))
+        }
+    }
+}
+
+impl Serialize for Interaction {
+    fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        serializer.collect_str(self)
+    }
+}
+
+impl<'a> Deserialize<'a> for Interaction {
+    fn deserialize<D: Deserializer<'a>>(deserializer: D) -> Result<Self, D::Error> {
+        deserializer.deserialize_str(InteractionVisitor)
+    }
+}
+
+/// A serde visitor for deserializing an `Interaction`.
+#[derive(Debug, Clone, Copy, Default)]
+struct InteractionVisitor;
+
+impl<'a> Visitor<'a> for InteractionVisitor {
+    type Value = Interaction;
+
+    fn expecting(&self, f: &mut Formatter) -> FmtResult {
+        f.write_str("an interaction specification string")
+    }
+
+    fn visit_str<E: DeError>(self, s: &str) -> Result<Self::Value, E> {
+        Interaction::from_str(s).map_err(E::custom)
+    }
+}
+
+/// The set of possible main interaction types.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum InteractionMainType {
+    /// Hydrogen bond.
+    #[serde(rename = "HBOND")]
+    HydrogenBond,
+    /// van der Waals-interaction.
+    #[serde(rename = "VDW")]
+    VanDerWaals,
+    /// Disulphide bond.
+    #[serde(rename = "SSBOND")]
+    Disulphide,
+    /// Ionic bond.
+    #[serde(rename = "IONIC")]
+    Ionic,
+    /// Pi-pi stacking.
+    #[serde(rename = "PIPISTACK")]
+    PiPiStack,
+    /// Pi-cation interaction.
+    #[serde(rename = "PICATION")]
+    PiCation,
+}
+
+impl Display for InteractionMainType {
+    fn fmt(&self, f: &mut Formatter) -> FmtResult {
+        match serde_json::to_value(self) {
+            Ok(Value::String(ref s)) => f.pad(s),
+            _ => panic!("InteractionMainType didn't serialize to a string"),
+        }
+    }
+}
+
+impl FromStr for InteractionMainType {
+    type Err = Error;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        serde_json::from_value(Value::from(s)).map_err(From::from)
+    }
+}
+
+impl Display for InteractionSubType {
+    fn fmt(&self, f: &mut Formatter) -> FmtResult {
+        match serde_json::to_value(self) {
+            Ok(Value::String(ref s)) => f.pad(s),
+            _ => panic!("InteractionSubType didn't serialize to a string"),
+        }
+    }
+}
+
+impl FromStr for InteractionSubType {
+    type Err = Error;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        serde_json::from_value(Value::from(s)).map_err(From::from)
+    }
+}
+
+/// The set of possible interaction subtypes.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum InteractionSubType {
+    /// Interaction on the main chain.
+    #[serde(rename = "MC")]
+    MainChain,
+    /// Interaction on a side chain.
+    #[serde(rename = "SC")]
+    SideChain,
+    /// Interaction on a ligand.
+    #[serde(rename = "LIG")]
+    Ligand,
+}
+
 
 /// De/Serialize an invalid angle of -999.9 as `None`.
 mod serde_angle {

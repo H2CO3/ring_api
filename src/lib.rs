@@ -151,6 +151,8 @@ mod tests {
 
         println!("{:#?}", response.nodes[0]);
         println!("{:#?}", response.edges[2]);
+        println!("{}", response.edges[2].node_id_1);
+        println!("{}", response.edges[2].interaction);
 
         Ok(())
     }
