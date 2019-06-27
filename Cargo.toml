@@ -1,11 +1,19 @@
 [package]
-name = "ring_api"
-version = "0.1.0"
-authors = ["Árpád Goretity <h2co3@h2co3.org>"]
-edition = "2018"
+name          = "ring_api"
+version       = "0.1.0" # don't forget to update in lib.rs
+edition       = "2018"
+authors       = ["Árpád Goretity <h2co3@h2co3.org>"]
+repository    = "https://github.com/H2CO3/ring_api.git"
+homepage      = "https://crates.io/crates/ring_api/"
+license       = "MIT"
+readme        = "README.md"
+documentation = "https://docs.rs/ring_api"
+description   = "Strongly-typed client for the RING HTTP API"
+categories    = ["api-bindings", "science", "simulation", "web-programming"]
+keywords      = ["ring", "bioinformatics", "computational-biology", "protein", "interactome"]
 
 [dependencies]
-reqwest = "0.9.17"
-serde = "1.0"
-serde_derive = "1.0"
-serde_json = "1.0"
+reqwest       = "0.9.17"
+serde         = "1.0"
+serde_derive  = "1.0"
+serde_json    = "1.0"
