@@ -22,6 +22,17 @@ pub enum JobStatus {
     Failed,
 }
 
+impl Display for JobStatus {
+    fn fmt(&self, formatter: &mut Formatter) -> FmtResult {
+        formatter.pad(match *self {
+            JobStatus::InProgress => "in progress",
+            JobStatus::Partial    => "partial",
+            JobStatus::Complete   => "complete",
+            JobStatus::Failed     => "failed",
+        })
+    }
+}
+
 /// A RING Job ID.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub struct JobId(String);
@@ -59,6 +70,6 @@ impl AsRef<str> for JobId {
 
 impl Display for JobId {
     fn fmt(&self, formatter: &mut Formatter) -> FmtResult {
-        self.as_str().fmt(formatter)
+        formatter.pad(self.as_str())
     }
 }
