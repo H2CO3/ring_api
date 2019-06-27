@@ -10,7 +10,7 @@ readme        = "README.md"
 documentation = "https://docs.rs/ring_api"
 description   = "Strongly-typed client for the RING HTTP API"
 categories    = ["api-bindings", "science", "simulation", "web-programming"]
-keywords      = ["ring", "bioinformatics", "computational-biology", "protein", "interactome"]
+keywords      = ["ring", "bioinformatics", "biology", "protein", "interactome"]
 
 [dependencies]
 reqwest       = "0.9.17"
